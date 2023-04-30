@@ -5,19 +5,13 @@ use sqlx::SqlitePool;
 use std::{
     collections::HashSet,
     env,
-    path::{Path, PathBuf},
+    path::{Path, PathBuf}, fs::remove_dir_all,
 };
 
-#[tokio::main]
-async fn main() -> anyhow::Result<()> {
-    dotenv().ok();
-
-    let db_url = env::var("DATABASE_URL")?;
-    let destination_path = env::var("DESTINATION_PATH")?;
-    let target_tag = env::var("TARGET_TAG")?;
-
-    let pool = SqlitePool::connect(&db_url).await?;
-
+async fn query_paths_for_tag(
+    pool: &SqlitePool,
+    target_tag: &str,
+) -> anyhow::Result<HashSet<PathBuf>> {
     let records = sqlx::query!(
         "
         SELECT media_parts.file
@@ -38,13 +32,8 @@ async fn main() -> anyhow::Result<()> {
         ",
         target_tag
     )
-    .fetch_all(&pool)
+    .fetch_all(pool)
     .await?;
-
-    if records.is_empty() {
-        println!("did not find any items for tag '{}'.", target_tag);
-        return Ok(());
-    }
 
     let unique_paths: HashSet<PathBuf> = records
         .into_iter()
@@ -54,11 +43,24 @@ async fn main() -> anyhow::Result<()> {
         })
         .collect();
 
-    for file_path in unique_paths {
-        if file_path.exists() {
-            println!("mv {} {}", &file_path.to_string_lossy().to_string(), &destination_path);
+    Ok(unique_paths)
+}
+
+async fn process_additions(pool: &SqlitePool) -> anyhow::Result<()> {
+    println!("processing additions");
+
+    let target_tag = "+";
+    let destination_path = env::var("DESTINATION_PATH")?;
+
+    for path in query_paths_for_tag(&pool, &target_tag).await? {
+        if path.exists() {
+            println!(
+                "mv {} {}",
+                &path.to_string_lossy().to_string(),
+                &destination_path
+            );
             let mut handle = match std::process::Command::new("mv")
-                .args(&[&file_path.to_string_lossy().to_string(), &destination_path])
+                .args([&path.to_string_lossy().to_string(), &destination_path])
                 .spawn()
             {
                 Ok(h) => h,
@@ -75,10 +77,47 @@ async fn main() -> anyhow::Result<()> {
         } else {
             println!(
                 "'{}' no longer exists, skipping.",
-                file_path.to_string_lossy()
+                path.to_string_lossy()
             );
         }
     }
+
+    Ok(())
+}
+
+async fn process_removes(pool: &SqlitePool) -> anyhow::Result<()> {
+    println!("processing deletes");
+
+    let target_tag = "-";
+
+    for path in query_paths_for_tag(&pool, &target_tag).await? {
+        if path.exists() {
+            println!(
+                "removing {}",
+                &path.to_string_lossy().to_string(),
+            );
+            remove_dir_all(path)?;
+        } else {
+            println!(
+                "'{}' no longer exists, skipping.",
+                path.to_string_lossy()
+            );
+        }
+    }
+
+    Ok(())
+}
+
+#[tokio::main]
+async fn main() -> anyhow::Result<()> {
+    dotenv().ok();
+
+    let db_url = env::var("DATABASE_URL")?;
+
+    let pool = SqlitePool::connect(&db_url).await?;
+
+    process_additions(&pool).await?;
+    process_removes(&pool).await?;
 
     Ok(())
 }
