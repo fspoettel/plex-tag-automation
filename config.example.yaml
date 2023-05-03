@@ -1,0 +1,9 @@
+rules:
+  -
+    tag: "-"
+    action: remove
+  -
+    tag: "+"
+    action: move
+    params:
+      destination_path: /destination_folder

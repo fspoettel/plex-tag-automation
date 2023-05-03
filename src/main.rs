@@ -1,66 +1,39 @@
+pub mod config;
+mod plex;
+
 extern crate dotenv;
 
 use dotenv::dotenv;
 use sqlx::SqlitePool;
-use std::{
-    collections::HashSet,
-    env,
-    path::{Path, PathBuf}, fs::remove_dir_all,
-};
+use std::path::PathBuf;
+use std::{env, fs::remove_dir_all};
 
-async fn query_paths_for_tag(
-    pool: &SqlitePool,
-    target_tag: &str,
-) -> anyhow::Result<HashSet<PathBuf>> {
-    let records = sqlx::query!(
-        "
-        SELECT media_parts.file
-        FROM media_parts
-        JOIN media_items ON media_parts.media_item_id == media_items.id
-        JOIN metadata_items ON media_items.metadata_item_id == metadata_items.id
-        WHERE metadata_items.parent_id
-        IN (
-            SELECT metadata_item_id
-            FROM taggings
-            WHERE tag_id = (
-                SELECT id
-                FROM tags
-                WHERE tag_type = 2
-                AND tag = ?
-            )
-        )
-        ",
-        target_tag
-    )
-    .fetch_all(pool)
-    .await?;
+use crate::config::{read_config, read_param};
+use crate::plex::queries;
 
-    let unique_paths: HashSet<PathBuf> = records
-        .into_iter()
-        .filter_map(|record| {
-            let file_path = record.file?;
-            Some(Path::new(&file_path).parent()?.to_path_buf())
-        })
-        .collect();
+fn process_removes(folders: Vec<PathBuf>) -> anyhow::Result<()> {
+    for folder in folders {
+        if folder.exists() {
+            println!("removing {}", &folder.to_string_lossy().to_string(),);
+            remove_dir_all(folder)?;
+        } else {
+            println!("'{}' no longer exists, skipping.", folder.to_string_lossy());
+        }
+    }
 
-    Ok(unique_paths)
+    Ok(())
 }
 
-async fn process_additions(pool: &SqlitePool) -> anyhow::Result<()> {
-    println!("processing additions");
-
-    let target_tag = "+";
-    let destination_path = env::var("DESTINATION_PATH")?;
-
-    for path in query_paths_for_tag(&pool, &target_tag).await? {
-        if path.exists() {
+fn process_move(folders: Vec<PathBuf>, destination_path: &str) -> anyhow::Result<()> {
+    for folder in folders {
+        if folder.exists() {
             println!(
                 "mv {} {}",
-                &path.to_string_lossy().to_string(),
+                &folder.to_string_lossy().to_string(),
                 &destination_path
             );
             let mut handle = match std::process::Command::new("mv")
-                .args([&path.to_string_lossy().to_string(), &destination_path])
+                .args([&folder.to_string_lossy().to_string(), destination_path])
                 .spawn()
             {
                 Ok(h) => h,
@@ -75,33 +48,7 @@ async fn process_additions(pool: &SqlitePool) -> anyhow::Result<()> {
                 continue;
             }
         } else {
-            println!(
-                "'{}' no longer exists, skipping.",
-                path.to_string_lossy()
-            );
-        }
-    }
-
-    Ok(())
-}
-
-async fn process_removes(pool: &SqlitePool) -> anyhow::Result<()> {
-    println!("processing deletes");
-
-    let target_tag = "-";
-
-    for path in query_paths_for_tag(&pool, &target_tag).await? {
-        if path.exists() {
-            println!(
-                "removing {}",
-                &path.to_string_lossy().to_string(),
-            );
-            remove_dir_all(path)?;
-        } else {
-            println!(
-                "'{}' no longer exists, skipping.",
-                path.to_string_lossy()
-            );
+            println!("'{}' no longer exists, skipping.", folder.to_string_lossy());
         }
     }
 
@@ -112,12 +59,24 @@ async fn process_removes(pool: &SqlitePool) -> anyhow::Result<()> {
 async fn main() -> anyhow::Result<()> {
     dotenv().ok();
 
-    let db_url = env::var("DATABASE_URL")?;
+    let pool = SqlitePool::connect(&env::var("DATABASE_URL")?).await?;
 
-    let pool = SqlitePool::connect(&db_url).await?;
-
-    process_additions(&pool).await?;
-    process_removes(&pool).await?;
+    for rule in read_config()?.rules {
+        println!("processing {} for tag {}", rule.action, rule.tag);
+        let folders = queries::folders_by_tag(&pool, &rule.tag).await?;
+        println!("found {} matching folders", folders.len());
+        // TODO: handled errors
+        match rule.action.as_str() {
+            "move" => {
+                let destination_path = read_param(&rule, "destination_path")?;
+                process_move(folders, &destination_path).unwrap();
+            }
+            "remove" => {
+                process_removes(folders).unwrap();
+            }
+            _ => unreachable!(),
+        };
+    }
 
     Ok(())
 }
