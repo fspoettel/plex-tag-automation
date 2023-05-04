@@ -14,3 +14,6 @@ serde = { version = "1.0", features = ["derive"] }
 serde_yaml = "0.9"
 sqlx = { version = "0.6", features = ["sqlite", "runtime-tokio-native-tls"] }
 tokio = { version = "1", features = ["full"]}
+
+[dev-dependencies]
+tempfile = "3"
