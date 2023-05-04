@@ -1,4 +1,4 @@
 /target
 .env
 .env.remote
-config.yaml
+config.yml

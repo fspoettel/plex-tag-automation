@@ -37,14 +37,12 @@ async fn main() -> anyhow::Result<()> {
             );
         });
 
-        existing_folders
-            .iter()
-            .filter(|f| f.exists())
-            .for_each(|folder| {
-                if let Err(e) = handle_folder(&rule, folder) {
-                    error!("{}", e);
-                }
-            });
+        existing_folders.iter().for_each(|folder| {
+            // TODO: guard against parent folder being library root.
+            if let Err(e) = handle_folder(&rule, folder) {
+                error!("{}", e);
+            }
+        });
     }
 
     Ok(())

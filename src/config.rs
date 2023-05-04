@@ -15,7 +15,7 @@ pub struct Config {
 }
 
 pub fn read_config() -> anyhow::Result<Config> {
-    let cfg_yaml = fs::read_to_string("./config.yaml")?;
+    let cfg_yaml = fs::read_to_string("./config.yml")?;
     serde_yaml::from_str(&cfg_yaml).map_err(|e| {
         println!("{}", e);
         anyhow!("failed to read config")
