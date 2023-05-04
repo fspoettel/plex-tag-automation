@@ -1,8 +1,6 @@
-pub mod config;
+mod config;
 mod handlers;
 mod plex;
-
-extern crate dotenv;
 
 use dotenv::dotenv;
 use log::{error, info};

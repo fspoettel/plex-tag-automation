@@ -1,6 +1,5 @@
-use std::{fs::remove_dir_all, path::Path};
-
 use anyhow::anyhow;
+use std::{fs::remove_dir_all, path::Path};
 
 use crate::config::{read_param, ConfigRule};
 
