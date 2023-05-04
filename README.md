@@ -2,7 +2,7 @@
 
 Rust binary that allows you to automate tasks by setting tags on plex items.
 
-I created this to automate my music backlog - after listening to an item, setting a tag either moves the album another plex music library or deletes it.
+I created this to automate my music backlog - after listening to an item, setting a tag either moves the album to my main plex music library or deletes it.
 
 Available tasks:
 
