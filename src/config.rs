@@ -33,3 +33,35 @@ pub fn read_param(rule: &ConfigRule, param: &str) -> anyhow::Result<String> {
         .ok_or(anyhow!("cannot access param {param} of rule {}", rule.tag))
         .cloned()
 }
+
+#[cfg(test)]
+mod tests {
+    use super::ConfigRule;
+    use crate::config::read_param;
+    use std::collections::HashMap;
+
+    #[test]
+    fn test_read_param_present() {
+        let mut params = HashMap::new();
+        params.insert("foo".into(), "bar".into());
+        let rule = ConfigRule {
+            tag: "++".into(),
+            action: "move".into(),
+            params: Some(params),
+        };
+
+        assert_eq!(read_param(&rule, "foo").unwrap(), "bar");
+        assert_eq!(read_param(&rule, "baz").is_err(), true);
+    }
+
+    #[test]
+    fn test_read_param_empty() {
+        let rule = ConfigRule {
+            tag: "++".into(),
+            action: "move".into(),
+            params: None,
+        };
+
+        assert_eq!(read_param(&rule, "baz").is_err(), true);
+    }
+}

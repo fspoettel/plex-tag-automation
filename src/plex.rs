@@ -1,7 +1,9 @@
 pub mod queries {
-    use std::{path::{PathBuf, Path}, collections::HashSet};
-
     use sqlx::SqlitePool;
+    use std::{
+        collections::HashSet,
+        path::{Path, PathBuf},
+    };
 
     pub async fn folders_by_tag(
         pool: &SqlitePool,

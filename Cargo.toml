@@ -8,6 +8,8 @@ edition = "2021"
 [dependencies]
 anyhow = "1"
 dotenv = "0.15"
+env_logger = "0.10.0"
+log = "0.4.17"
 serde = { version = "1.0", features = ["derive"] }
 serde_yaml = "0.9"
 sqlx = { version = "0.6", features = ["sqlite", "runtime-tokio-native-tls"] }
