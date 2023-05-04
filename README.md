@@ -14,14 +14,14 @@ Available tasks:
 
 ## Motivation
 
-While a convenient way to script this already exists with the [Plex API](https://github.com/pkkid/python-plexapi), the API requires IP acccess to the instance that Plex is hosted on and stored Plex credentials. This is not easy to setup for some deployment configurations.
+While a convenient way to script this already exists with the [Plex API](https://github.com/pkkid/python-plexapi), the API requires IP access to the instance that Plex is hosted on and stores Plex credentials. This is not easy to set up for some deployment configurations.
 
-This script does _not_ require API access. It works by reading from Plex' sqlite database directly, so it can be hosted alongside Plex, for example as a cron job.
+This script does _not_ require API access. It works by reading from Plex's sqlite database directly, so it can be hosted alongside Plex, for example as a cron job.
 
 ## Setup
 
 1.  Clone this repo to the target server.
 2.  Run `cargo build --release`.
-3.  Create an `.env` from `.env.example` and adjust `DATABASE_URL`.
-4.  Create a `config.yml` file from `config.example.yml` and adjust rules.
+3.  Create a `.env` from `.env.example` and adjust `DATABASE_URL`.
+4.  Create a `config.yml` file from `config.example.yml` and adjust the rules.
 5.  Run with `./target/debug/plex-tag-automation`
